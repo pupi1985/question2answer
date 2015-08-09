@@ -1,0 +1,80 @@
+{#{% spaceless %}#}
+
+{% block secret1 %}
+	SECRET1_MAIN
+{% endblock secret1 %}
+
+{% block secret2 %}
+	SECRET2_MAIN
+{% endblock secret2 %}
+
+
+{% block doctype %}
+	{{ q2a_plugin('secret1') }}
+	<!DOCTYPE html>
+{% endblock doctype %}
+<html {{ html_tags|raw }}>
+	{% block html %}
+		<!-- {{ attribution }} -->
+		<head>
+			{% block head %}
+				<meta charset="{{ charset }}"/>
+
+				{% block head_title %}
+					<title>{{ title }}</title>
+				{% endblock head_title %}
+
+				{% block head_metas %}
+					{% if description is not empty %}
+						<meta name="description" content="{{ description }}"/>
+					{% endif %}
+					{% if keywords is not empty %}
+						<meta name="keywords" content="{{ keywords }}"/>
+					{% endif %}
+				{% endblock head_metas %}
+
+				{% block head_css %}
+					<link rel="stylesheet" href="{{ main_css_file }}"/>
+					{% if notices is not empty %}
+						<style>
+							.qa-body-js-on .qa-notice {display:none}
+						</style>
+					{% endif %}
+				{% endblock head_css %}
+
+				{% block head_links %}
+					{% if canonical is not empty %}
+						<link rel="canonical" href="{{ canonical }}"/>
+					{% endif %}
+					{% if feed.url is not empty %}
+						<link rel="alternate" type="application/rss+xml" href="{{ feed.url }}" title="{{ feed.label }}"/>
+					{% endif %}
+					{% for page_link in page_links.items %}
+						{% if page_link.type  in ['prev', 'next'] %}
+							<link rel="{{ page_link.type }}" href="{{ page_link.url }}" />
+						{% endif %}
+					{% endfor %}
+				{% endblock head_links %}
+
+				{% block head_lines %}
+					{% for head_line in head_lines %}
+						{{ head_line|raw }}
+					{% endfor %}
+				{% endblock head_lines %}
+
+				{% block head_script %}
+					{% for script_line in script %}
+						{{ script_line|raw }}
+					{% endfor %}
+				{% endblock head_script %}
+			</head>
+		{% endblock head %}
+		<body {{ body_tags|raw }}>
+			{% block body %}
+			{% endblock body %}
+		</body>
+		<!-- {{ attribution }} -->
+	{% endblock html%}
+</html>
+
+{#{% endspaceless %}#}

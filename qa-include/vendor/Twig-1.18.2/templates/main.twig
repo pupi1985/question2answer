@@ -1,0 +1,79 @@
+{#{% spaceless %}#}
+
+<!DOCTYPE html>
+<html {{ html_tags|raw }}>
+	{{ q2a_layers('html') }}
+
+	<!-- {{ attribution }} -->
+
+	<head>
+		{{ q2a_layers('head') }}
+		<meta charset="{{ charset }}"/>
+
+		<title>{{ title }}</title>
+
+		{{ q2a_layers('head_metas') }}
+		{% if description is not empty %}
+			<meta name="description" content="{{ description }}"/>
+		{% endif %}
+		{% if keywords is not empty %}
+			<meta name="keywords" content="{{ keywords }}"/>
+		{% endif %}
+		{{ q2a_layers('head_metas_end') }}
+
+		{{ q2a_layers('head_css') }}
+		<link rel="stylesheet" href="{{ main_css_file }}"/>
+		{% if notices is not empty %}
+			<style>
+				.qa-body-js-on .qa-notice {display:none}
+			</style>
+		{% endif %}
+		{{ q2a_layers('head_css_end') }}
+
+		{{ q2a_layers('head_links') }}
+		{% if canonical is not empty %}
+			<link rel="canonical" href="{{ canonical }}"/>
+		{% endif %}
+		{% if feed.url is not empty %}
+			<link rel="alternate" type="application/rss+xml" href="{{ feed.url }}" title="{{ feed.label }}"/>
+		{% endif %}
+		{% for page_link in page_links.items %}
+			{% if page_link.type  in ['prev', 'next'] %}
+				<link rel="{{ page_link.type }}" href="{{ page_link.url }}" />
+			{% endif %}
+		{% endfor %}
+		{{ q2a_layers('head_links_end') }}
+
+		{{ q2a_layers('head_lines') }}
+		{% for head_line in head_lines %}
+			{{ head_line|raw }}
+		{% endfor %}
+		{{ q2a_layers('head_lines_end') }}
+
+		{{ q2a_layers('head_script') }}
+		{% for script_line in script %}
+			{{ script_line|raw }}
+		{% endfor %}
+		{{ q2a_layers('head_script_end') }}
+
+		{{ q2a_layers('head_end') }}
+	</head>
+
+	<body {{ body_tags|raw }}>
+		{{ q2a_layers('body') }}
+
+		{# Example of how to call a layer callback with parameters
+				{% for e in ['a', 'b', 'c'] %}
+					{{ e }}
+					{{ q2a_layers('test', e) }}
+				{% endfor %}
+		#}
+
+		{{ q2a_layers('body_end') }}
+	</body>
+
+	<!-- {{ attribution }} -->
+
+	{{ q2a_layers('html_end') }}
+</html>
+{#{% endspaceless %}#}
