@@ -36,6 +36,82 @@ class qa_html_theme extends qa_html_theme_base
 {
 	protected $theme = 'snowflat';
 
+	private function getTitle()
+	{
+		$pageTitle = '';
+		if (qa_request() !== '' && !empty($this->content['title']))
+			$pageTitle .= $this->content['title'] . ' - ';
+		return $pageTitle . $this->content['site_title'];
+	}
+
+	public function initialize() {
+		global $twig;
+
+		parent::initialize();
+
+		// Loaded by plugins but this is just for demostration purposes
+		$templates = array();
+		$templates[] = array(
+			'path' => QA_INCLUDE_DIR . 'vendor/Twig-1.18.2/templates/main.twig',
+			'context' => array(),
+		);
+		$templates[] = array(
+			'path' => QA_PLUGIN_DIR . 'plugin/templates/aaa.twig',
+			'context' => array(
+				'aaa_var1' => 'Variable aaa_var1',
+				'aaa_var2' => 'Variable aaa_var2',
+			),
+		);
+		$templates[] = array(
+			'path' => QA_PLUGIN_DIR . 'plugin/templates/bbb.twig',
+			'context' => array(
+				'bbb_var1' => 'Variable bbb_var1',
+				'bbb_var2' => 'Variable bbb_var2',
+			),
+		);
+
+		$layerContexts = array();
+		foreach ($templates as $index => $template) {
+			$twig->getLoader()->setTemplate((string) $index, file_get_contents($template['path']));
+			if ($index > 0)
+				$layerContexts[$index] = $template['context'];
+		}
+
+		$twig->getExtension('q2a')->setLayerContexts($layerContexts);
+
+
+//		Remove qa_html calls from all qa_content elements or add a raw filter everywhere in the twig template
+
+		echo $twig->render("0", array(
+			// html()
+			'html_tags' => isset($this->content['html_tags']) ? $this->content['html_tags'] : '',
+			'attribution' => 'Powered by Question2Answer - http://www.question2answer.org/',
+			// head()
+			'charset' => $this->content['charset'],
+			// head_title()
+			'title' => $this->getTitle(),
+			// head_metas()
+			'description' => isset($this->content['description']) ? $this->content['description'] : '',
+			'keywords' => isset($this->content['keywords']) ? $this->content['keywords'] : '',
+			// head_css()
+			'main_css_file' => $this->rooturl . 'qa-styles.css?' . QA_VERSION,
+			'notices' => isset($this->content['notices']) ? $this->content['notices'] : array(),
+			// head_links()
+			'canonical' => isset($this->content['canonical']) ? $this->content['canonical'] : '',
+			'feed' => isset($this->content['feed']) ? $this->content['feed'] : array(),
+			'page_links' => isset($this->content['page_links']) ? $this->content['page_links'] : array(),
+			// head_lines()
+			'head_lines' => isset($this->content['head_lines']) ? $this->content['head_lines'] : array(),
+			// head_script()
+			'script' => isset($this->content['script']) ? $this->content['script'] : array(),
+
+
+			'body_tags' => 'body-tag',
+		));
+
+		exit;
+	}
+
 	// theme subdirectories
 	private $js_dir = 'js';
 	private $icon_url = 'images/icons';

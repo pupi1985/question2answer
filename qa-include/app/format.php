@@ -1820,6 +1820,15 @@
 			}
 		}
 
+		global $twig;
+
+		require_once QA_INCLUDE_DIR . 'vendor/Twig-1.18.2/lib/Twig/Autoloader.php';
+		Twig_Autoloader::register();
+
+		$loader = new Twig_Loader_Array(array());
+		$twig = new Twig_Environment($loader);
+		$twig->addExtension(new Twig_Extension_Q2A());
+
 	//	Finally, instantiate the object
 
 		$themeclass=new $classname($template, $content, $themeroothtml, $request);
