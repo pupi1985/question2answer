@@ -1271,6 +1271,9 @@ function qa_html_page_links($request, $start, $pagesize, $count, $prevnext, $par
 		foreach ($links['items'] as $key => $link) {
 			if ($link['page'] != $thispage) {
 				$params['start'] = $pagesize * ($link['page'] - 1);
+				if ((int)$params['start'] == 0) {
+					$params = null;
+				}
 				$links['items'][$key]['url'] = qa_path_html($request, $params, null, null, $anchor);
 			}
 		}
