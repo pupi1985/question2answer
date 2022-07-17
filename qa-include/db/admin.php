@@ -75,8 +75,12 @@ function qa_db_count_posts($type = null, $fromuser = null)
 {
 	$wheresql = '';
 
-	if (isset($type))
-		$wheresql .= ' WHERE type=' . qa_db_argument_to_mysql($type, true);
+	if (isset($type)) {
+		if (!is_array($type)) {
+			$type = [$type];
+		}
+		$wheresql .= ' WHERE type IN ' . qa_db_argument_to_mysql($type, true, true);
+	}
 
 	if (isset($fromuser))
 		$wheresql .= (strlen($wheresql) ? ' AND' : ' WHERE') . ' userid ' . ($fromuser ? 'IS NOT' : 'IS') . ' NULL';

@@ -1822,13 +1822,12 @@ input[type="submit"], button {
 	}
 }
 
-.qa-form-tall-button-save, .qa-form-wide-button-save, .qa-form-wide-button-saverecalc,
+.qa-form-tall-button-save, .qa-form-wide-button-save,
 .qa-form-tall-button-ask, .qa-form-tall-button-answer {
 	background: #27ae60 none;
 }
 .qa-form-tall-button-save:hover, .qa-form-tall-button-save:focus,
 .qa-form-wide-button-save:hover, .qa-form-wide-button-save:focus,
-.qa-form-wide-button-saverecalc:hover, .qa-form-wide-button-saverecalc:focus,
 .qa-form-tall-button-ask:hover, .qa-form-tall-button-ask:focus,
 .qa-form-tall-button-answer:hover, .qa-form-tall-button-answer:focus {
 	background-color: #2ecc71;

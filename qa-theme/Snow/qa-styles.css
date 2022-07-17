@@ -1331,12 +1331,12 @@ div.header-banner {
 	border: 1px solid #880000;
 }
 
-.qa-form-wide-button-save, .qa-form-wide-button-saverecalc, .qa-form-tall-button-save {
+.qa-form-wide-button-save, .qa-form-tall-button-save {
 	background: #196627;
 	border: 1px solid #153513;
 }
 
-.qa-form-wide-button-save:hover, .qa-form-wide-button-saverecalc:hover, .qa-form-tall-button-save:hover {
+.qa-form-wide-button-save:hover, .qa-form-tall-button-save:hover {
 	background: #1F7F31;
 	border: 1px solid #153513;
 }

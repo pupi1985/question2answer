@@ -808,14 +808,14 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('ALTER TABLE ^posts DROP COLUMN votes, ADD COLUMN upvotes ' . $definitions['posts']['upvotes'] .
 					' AFTER cookieid, ADD COLUMN downvotes ' . $definitions['posts']['downvotes'] . ' AFTER upvotes');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['dorecountposts'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 3:
 				qa_db_upgrade_query('ALTER TABLE ^userpoints ADD COLUMN upvoteds ' . $definitions['userpoints']['upvoteds'] .
 					' AFTER avoteds, ADD COLUMN downvoteds ' . $definitions['userpoints']['downvoteds'] . ' AFTER upvoteds');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['dorecalcpoints'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 4:
@@ -827,7 +827,7 @@ function qa_db_upgrade_tables()
 			case 5:
 				qa_db_upgrade_query('ALTER TABLE ^contentwords ADD COLUMN type ' . $definitions['contentwords']['type'] . ' AFTER count, ADD COLUMN questionid ' . $definitions['contentwords']['questionid'] . ' AFTER type');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['doreindexcontent'] = true;
+				$keyrecalc['reindex_content'] = true;
 				break;
 
 			// Up to here: Version 1.0 beta 2
@@ -835,7 +835,7 @@ function qa_db_upgrade_tables()
 			case 6:
 				qa_db_upgrade_query('ALTER TABLE ^userpoints ADD COLUMN cposts ' . $definitions['userpoints']['cposts'] . ' AFTER aposts');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['dorecalcpoints'] = true;
+				$keyrecalc['users_points'] = true;
 				break;
 
 			case 7:
@@ -848,7 +848,7 @@ function qa_db_upgrade_tables()
 			case 8:
 				qa_db_upgrade_query('ALTER TABLE ^posts ADD KEY (type, acount, created)');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['dorecountposts'] = true; // for unanswered question count
+				$keyrecalc['recount_posts'] = true; // for unanswered question count
 				break;
 
 			// Up to here: Version 1.0 beta 3, 1.0, 1.0.1 beta, 1.0.1
@@ -911,7 +911,7 @@ function qa_db_upgrade_tables()
 			case 14:
 				qa_db_upgrade_query('ALTER TABLE ^userpoints DROP COLUMN qvotes, DROP COLUMN avotes, ADD COLUMN qupvotes ' . $definitions['userpoints']['qupvotes'] . ' AFTER aselecteds, ADD COLUMN qdownvotes ' . $definitions['userpoints']['qdownvotes'] . ' AFTER qupvotes, ADD COLUMN aupvotes ' . $definitions['userpoints']['aupvotes'] . ' AFTER qdownvotes, ADD COLUMN adownvotes ' . $definitions['userpoints']['adownvotes'] . ' AFTER aupvotes');
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['dorecalcpoints'] = true;
+				$keyrecalc['users_points'] = true;
 				break;
 
 			// Up to here: Version 1.2 beta 1
@@ -933,7 +933,7 @@ function qa_db_upgrade_tables()
 			case 16:
 				qa_db_upgrade_table_columns($definitions, 'posts', array('format'));
 				qa_db_upgrade_query($locktablesquery);
-				$keyrecalc['doreindexcontent'] = true; // because of new treatment of apostrophes in words
+				$keyrecalc['reindex_content'] = true; // because of new treatment of apostrophes in words
 				break;
 
 			case 17:
@@ -1061,7 +1061,7 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('ALTER TABLE ^words ADD COLUMN tagwordcount ' . $definitions['words']['tagwordcount'] . ' AFTER contentcount');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['doreindexcontent'] = true;
+				$keyrecalc['reindex_content'] = true;
 				break;
 
 			// Up to here: Version 1.4 developer preview
@@ -1086,21 +1086,21 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('ALTER TABLE ^posts ADD COLUMN flagcount ' . $definitions['posts']['flagcount'] . ' AFTER downvotes, ADD KEY type_3 (type, flagcount, created)');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecountposts'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 27:
 				qa_db_upgrade_query('ALTER TABLE ^posts ADD COLUMN netvotes ' . $definitions['posts']['netvotes'] . ' AFTER downvotes, ADD KEY type_4 (type, netvotes, created)');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecountposts'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 28:
 				qa_db_upgrade_query('ALTER TABLE ^posts ADD COLUMN views ' . $definitions['posts']['views'] . ' AFTER netvotes, ADD COLUMN hotness ' . $definitions['posts']['hotness'] . ' AFTER views, ADD KEY type_5 (type, views, created), ADD KEY type_6 (type, hotness)');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecountposts'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 29:
@@ -1127,7 +1127,7 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('ALTER TABLE ^posts ADD CONSTRAINT ^posts_ibfk_3 FOREIGN KEY (categoryid) REFERENCES ^categories(categoryid) ON DELETE SET NULL');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecalccategories'] = true;
+				$keyrecalc['recalc_categories'] = true;
 				break;
 
 			// Up to here: Version 1.4 betas and release
@@ -1212,7 +1212,7 @@ function qa_db_upgrade_tables()
 				$locktablesquery .= ', ^userevents WRITE';
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorefillevents'] = true;
+				$keyrecalc['refill_events'] = true;
 				break;
 
 			case 37:
@@ -1233,7 +1233,7 @@ function qa_db_upgrade_tables()
 				$locktablesquery .= ', ^sharedevents WRITE';
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorefillevents'] = true;
+				$keyrecalc['refill_events'] = true;
 				break;
 
 			case 38:
@@ -1319,7 +1319,7 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('ALTER TABLE ^posts DROP KEY selchildid, ADD KEY selchildid (selchildid, type, created), ADD COLUMN amaxvote SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER acount, ADD KEY type_7 (type, amaxvote, created)');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecountposts'] = true;
+				$keyrecalc['recount_posts'] = true;
 				break;
 
 			case 47:
@@ -1472,8 +1472,8 @@ function qa_db_upgrade_tables()
 				qa_db_upgrade_query('DELETE ^uservotes FROM ^uservotes JOIN ^posts ON ^uservotes.postid=^posts.postid AND ^uservotes.userid=^posts.userid');
 				qa_db_upgrade_query($locktablesquery);
 
-				$keyrecalc['dorecountposts'] = true;
-				$keyrecalc['dorecalcpoints'] = true;
+				$keyrecalc['recount_posts'] = true;
+				$keyrecalc['users_points'] = true;
 				break;
 
 			// Up to here: Version 1.7
@@ -1613,17 +1613,22 @@ function qa_db_upgrade_tables()
 
 	// Perform any necessary recalculations, as determined by upgrade steps
 
-	foreach ($keyrecalc as $state => $dummy) {
-		while ($state) {
-			set_time_limit(60);
+	foreach ($keyrecalc as $process => $dummy) {
+		set_time_limit(60);
 
-			$stoptime = time() + 2;
+		$stoptime = time() + 3;
 
-			while (qa_recalc_perform_step($state) && (time() < $stoptime))
-				;
+		$processManager = qa_recalc_get_process_manager($process);
+		do {
+			do {
+				$result = $processManager->execute(true);
+				$stepFinished = $result['step_state']['is_finished'] ?? false;
+				$processedItems = $result['step_state']['processed_items'] ?? 0;
+				$shouldShowProgress = $result['process_finished'] || $stepFinished || $processedItems === 0;
+			} while (!$shouldShowProgress && time() < $stoptime);
 
-			qa_db_upgrade_progress(qa_recalc_get_message($state));
-		}
+			qa_db_upgrade_progress(qa_html($result['message']));
+		} while (!$result['process_finished']);
 	}
 }
 

@@ -407,7 +407,6 @@ function qa_page_routing()
 		'admin/pages' => 'pages/admin/admin-pages.php',
 		'admin/plugins' => 'pages/admin/admin-plugins.php',
 		'admin/points' => 'pages/admin/admin-points.php',
-		'admin/recalc' => 'pages/admin/admin-recalc.php',
 		'admin/stats' => 'pages/admin/admin-stats.php',
 		'admin/userfields' => 'pages/admin/admin-userfields.php',
 		'admin/usertitles' => 'pages/admin/admin-usertitles.php',

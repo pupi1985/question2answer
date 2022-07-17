@@ -40,8 +40,10 @@ if (!qa_admin_check_privileges($qa_content)) {
 
 // Process user actions
 
+$pendingRecalcs = json_decode(qa_opt('recalc_pending_processes'), true) ?? [];
+$recalculate = in_array('users_points', $pendingRecalcs);
+
 $securityexpired = false;
-$recalculate = false;
 $optionnames = qa_db_points_option_names();
 
 if (qa_clicked('doshowdefaults')) {
@@ -51,7 +53,7 @@ if (qa_clicked('doshowdefaults')) {
 		$options[$optionname] = qa_default_option($optionname);
 	}
 } else {
-	if (qa_clicked('dosaverecalc')) {
+	if (qa_clicked('dosave')) {
 		if (!qa_check_form_security_code('admin/points', qa_post_text('code'))) {
 			$securityexpired = true;
 		} else {
@@ -59,10 +61,10 @@ if (qa_clicked('doshowdefaults')) {
 				qa_set_option($optionname, (int)qa_post_text('option_' . $optionname));
 			}
 
-			if (!qa_post_text('has_js')) {
-				qa_redirect('admin/recalc', array('dorecalcpoints' => 1));
-			} else {
+			if (!$recalculate) {
 				$recalculate = true;
+				$pendingRecalcs[] = 'users_points';
+				qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
 			}
 		}
 	}
@@ -84,14 +86,13 @@ $qa_content['form'] = array(
 	'style' => 'wide',
 
 	'buttons' => array(
-		'saverecalc' => array(
-			'tags' => 'id="dosaverecalc"',
-			'label' => qa_lang_html('admin/save_recalc_button'),
+		'save' => array(
+			'label' => qa_lang_html('admin/save_options_button'),
 		),
 	),
 
 	'hidden' => array(
-		'dosaverecalc' => '1',
+		'dosave' => '1',
 		'has_js' => '0',
 		'code' => qa_get_form_security_code('admin/points'),
 	),
@@ -107,15 +108,11 @@ if (qa_clicked('doshowdefaults')) {
 	);
 } else {
 	if ($recalculate) {
-		$qa_content['form']['ok'] = '<span id="recalc_ok"></span>';
-		$qa_content['form']['hidden']['code_recalc'] = qa_get_form_security_code('admin/recalc');
-
-		$qa_content['script_rel'][] = 'qa-content/qa-admin.js?' . QA_VERSION;
-		$qa_content['script_var']['qa_warning_recalc'] = qa_lang('admin/stop_recalc_warning');
-
-		$qa_content['script_onloads'][] = array(
-			"qa_recalc_click('dorecalcpoints', document.getElementById('dosaverecalc'), null, 'recalc_ok');"
-		);
+		$qa_content['error'] = strtr(qa_lang_html('admin/recalc_needed'), [
+			'^1' => sprintf('<a href="%s">', qa_path_html('admin/stats', null, null, null, 'form_users_points')),
+			'^2' => qa_lang_html('admin/recalc_users_points_title'),
+			'^3' => '</a>',
+		]);
 	}
 
 	$qa_content['form']['buttons']['showdefaults'] = array(

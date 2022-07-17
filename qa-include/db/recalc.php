@@ -66,10 +66,36 @@ function qa_db_pages_get_for_reindexing($startpageid, $count)
 function qa_db_posts_get_for_reindexing($startpostid, $count)
 {
 	return qa_db_read_all_assoc(qa_db_query_sub(
-		"SELECT ^posts.postid, ^posts.title, ^posts.content, ^posts.format, ^posts.tags, ^posts.categoryid, ^posts.type, IF (^posts.type='Q', ^posts.postid, IF(parent.type='Q', parent.postid, grandparent.postid)) AS questionid, ^posts.parentid FROM ^posts LEFT JOIN ^posts AS parent ON ^posts.parentid=parent.postid LEFT JOIN ^posts as grandparent ON parent.parentid=grandparent.postid WHERE ^posts.postid>=# AND ( (^posts.type='Q') OR (^posts.type='A' AND parent.type<=>'Q') OR (^posts.type='C' AND parent.type<=>'Q') OR (^posts.type='C' AND parent.type<=>'A' AND grandparent.type<=>'Q') ) ORDER BY postid LIMIT #",
+		'SELECT ^posts.postid, ^posts.title, ^posts.content, ^posts.format, ^posts.tags, ^posts.categoryid, ' .
+		'^posts.type, IF (^posts.type = "Q", ^posts.postid, IF(parent.type = "Q", parent.postid, grandparent.postid)) AS questionid, ' .
+		'^posts.parentid FROM ^posts ' .
+		'LEFT JOIN ^posts AS parent ON ^posts.parentid = parent.postid ' .
+		'LEFT JOIN ^posts AS grandparent ON parent.parentid = grandparent.postid ' .
+		'WHERE ^posts.postid >= # AND (' .
+		'^posts.type = "Q" OR ' .
+		'(^posts.type = "A" AND parent.type <=> "Q") OR ' .
+		'(^posts.type = "C" AND parent.type <=> "Q") OR ' .
+		'(^posts.type = "C" AND parent.type <=> "A" AND grandparent.type <=> "Q")' .
+		') ' .
+		'ORDER BY postid ' .
+		'LIMIT #',
 		$startpostid, $count
 	), 'postid');
 }
+
+function qa_db_posts_count_for_reindexing()
+{
+	return (int)qa_db_read_one_value(qa_db_query_sub(
+		'SELECT COUNT(*) FROM ^posts ' .
+		'LEFT JOIN ^posts AS parent ON ^posts.parentid = parent.postid ' .
+		'LEFT JOIN ^posts AS grandparent ON parent.parentid = grandparent.postid ' .
+		'WHERE ^posts.type = "Q" OR ' .
+		'(^posts.type = "A" AND parent.type <=> "Q") OR ' .
+		'(^posts.type = "C" AND parent.type <=> "Q") OR ' .
+		'(^posts.type = "C" AND parent.type <=> "A" AND grandparent.type <=> "Q")'
+	));
+}
+
 
 
 /**
@@ -213,6 +239,8 @@ function qa_db_posts_get_for_recounting($startpostid, $count)
  */
 function qa_db_posts_votes_recount($firstpostid, $lastpostid)
 {
+	require_once QA_INCLUDE_DIR . 'db/hotness.php';
+
 	qa_db_query_sub(
 		'UPDATE ^posts AS x, (SELECT ^posts.postid, COALESCE(SUM(GREATEST(0,^uservotes.vote)),0) AS upvotes, -COALESCE(SUM(LEAST(0,^uservotes.vote)),0) AS downvotes, COALESCE(SUM(IF(^uservotes.flag, 1, 0)),0) AS flagcount FROM ^posts LEFT JOIN ^uservotes ON ^uservotes.postid=^posts.postid WHERE ^posts.postid>=# AND ^posts.postid<=# GROUP BY postid) AS a SET x.upvotes=a.upvotes, x.downvotes=a.downvotes, x.netvotes=a.upvotes-a.downvotes, x.flagcount=a.flagcount WHERE x.postid=a.postid',
 		$firstpostid, $lastpostid
@@ -244,22 +272,25 @@ function qa_db_posts_answers_recount($firstpostid, $lastpostid)
 
 /**
  * Return the ids of up to $count users in the database starting from $startuserid
- * If using single sign-on integration, base this on user activity rather than the users table which we don't have
- * @param $startuserid
+ * When using external users, users are fetched based on their activity rather than the users table which we don't have.
+ * @param $lastProcessedUserId
  * @param $count
  * @return array
  */
-function qa_db_users_get_for_recalc_points($startuserid, $count)
+function qa_db_users_get_for_recalc_points($lastProcessedUserId, $count)
 {
 	if (QA_FINAL_EXTERNAL_USERS) {
 		return qa_db_read_all_values(qa_db_query_sub(
-			'SELECT userid FROM ((SELECT DISTINCT userid FROM ^posts WHERE userid>=# ORDER BY userid LIMIT #) UNION (SELECT DISTINCT userid FROM ^uservotes WHERE userid>=# ORDER BY userid LIMIT #)) x ORDER BY userid LIMIT #',
-			$startuserid, $count, $startuserid, $count, $count
+			'SELECT userid FROM (' .
+			'(SELECT DISTINCT userid FROM ^posts WHERE userid > # ORDER BY userid LIMIT #) UNION ' .
+			'(SELECT DISTINCT userid FROM ^uservotes WHERE userid > # ORDER BY userid LIMIT #)' .
+			') x ORDER BY userid LIMIT #',
+			$lastProcessedUserId, $count, $lastProcessedUserId, $count, $count
 		));
 	} else {
 		return qa_db_read_all_values(qa_db_query_sub(
-			'SELECT DISTINCT userid FROM ^users WHERE userid>=# ORDER BY userid LIMIT #',
-			$startuserid, $count
+			'SELECT userid FROM ^users WHERE userid > # ORDER BY userid LIMIT #',
+			$lastProcessedUserId, $count
 		));
 	}
 }
@@ -413,8 +444,28 @@ function qa_db_posts_get_for_deleting($type, $startpostid = 0, $limit = null)
 	$limitsql = isset($limit) ? (' ORDER BY ^posts.postid LIMIT ' . (int)$limit) : '';
 
 	return qa_db_read_all_values(qa_db_query_sub(
-		"SELECT ^posts.postid FROM ^posts LEFT JOIN ^posts AS child ON child.parentid=^posts.postid LEFT JOIN ^posts AS dupe ON dupe.closedbyid=^posts.postid WHERE ^posts.type=$ AND ^posts.postid>=# AND child.postid IS NULL AND dupe.postid IS NULL" . $limitsql,
+		'SELECT ^posts.postid FROM ^posts ' .
+		'LEFT JOIN ^posts AS child ON child.parentid = ^posts.postid ' .
+		'LEFT JOIN ^posts AS dupe ON dupe.closedbyid = ^posts.postid ' .
+		'WHERE ^posts.type = $ AND ^posts.postid >= # AND child.postid IS NULL AND dupe.postid IS NULL' .
+		$limitsql,
 		$type . '_HIDDEN', $startpostid
+	));
+}
+
+/**
+ * Return the count of $type posts that can be deleted from the database (i.e. have no dependents)
+ * @param $type
+ * @return array
+ */
+function qa_db_posts_count_for_deleting($type)
+{
+	return qa_db_read_one_value(qa_db_query_sub(
+		'SELECT COUNT(*) FROM ^posts ' .
+		'LEFT JOIN ^posts AS child ON child.parentid = ^posts.postid ' .
+		'LEFT JOIN ^posts AS dupe ON dupe.closedbyid = ^posts.postid ' .
+		'WHERE ^posts.type = $ AND child.postid IS NULL AND dupe.postid IS NULL',
+		$type . '_HIDDEN'
 	));
 }
 
@@ -431,16 +482,20 @@ function qa_db_count_blobs_in_db()
 
 
 /**
- * Return the id, content and format of the first blob whose content is stored in the database starting from $startblobid
- * @param $startblobid
- * @return array|null
+ * Return the id, content and format of the blobs whose content are stored in the database immediately
+ * after $lastBlobId (excluding it), returning the amount defined in $count
+ * @param $lastBlobId
+ * @param $count
+ * @return array
  */
-function qa_db_get_next_blob_in_db($startblobid)
+function qa_db_get_next_blobs_in_db($lastBlobId, $count)
 {
-	return qa_db_read_one_assoc(qa_db_query_sub(
-		'SELECT blobid, content, format FROM ^blobs WHERE blobid>=# AND content IS NOT NULL LIMIT 1',
-		$startblobid
-	), true);
+	return qa_db_read_all_assoc(qa_db_query_sub(
+		'SELECT blobid, content, format FROM ^blobs ' .
+		'WHERE blobid > # AND content IS NOT NULL ' .
+		'LIMIT #',
+		$lastBlobId, $count
+	), 'blobid');
 }
 
 
@@ -452,16 +507,19 @@ function qa_db_count_blobs_on_disk()
 	return qa_db_read_one_value(qa_db_query_sub('SELECT COUNT(*) FROM ^blobs WHERE content IS NULL'));
 }
 
-
 /**
- * Return the id and format of the first blob whose content is stored on disk starting from $startblobid
- * @param $startblobid
- * @return array|null
+ * Return the id and format of the blobs whose content are stored on disk immediately after $lastBlobId
+ * (excluding it), returning the amount defined in $count
+ * @param $lastBlobId
+ * @param $count
+ * @return array
  */
-function qa_db_get_next_blob_on_disk($startblobid)
+function qa_db_get_next_blobs_on_disk($lastBlobId, $count)
 {
-	return qa_db_read_one_assoc(qa_db_query_sub(
-		'SELECT blobid, format FROM ^blobs WHERE blobid>=# AND content IS NULL LIMIT 1',
-		$startblobid
-	), true);
+	return qa_db_read_all_assoc(qa_db_query_sub(
+		'SELECT blobid, format FROM ^blobs ' .
+		'WHERE blobid > # AND content IS NULL ' .
+		'LIMIT #',
+		$lastBlobId, $count
+	), 'blobid');
 }

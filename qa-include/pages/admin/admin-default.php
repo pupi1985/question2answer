@@ -672,7 +672,6 @@ switch ($adminsection) {
 		}
 
 		return include QA_INCLUDE_DIR . 'qa-page-not-found.php';
-		break;
 }
 
 
@@ -689,7 +688,9 @@ foreach ($showoptions as $optionname) {
 
 $errors = array();
 
-$recalchotness = false;
+$pendingRecalcs = json_decode(qa_opt('recalc_pending_processes'), true) ?? [];
+$recalchotness = in_array('recount_posts', $pendingRecalcs);
+
 $startmailing = false;
 $securityexpired = false;
 
@@ -737,8 +738,12 @@ else {
 					case 'hot_weight_votes':
 					case 'hot_weight_q_age':
 					case 'hot_weight_a_age':
-						if (qa_opt($optionname) != $optionvalue)
+						if (qa_opt($optionname) != $optionvalue && !$recalchotness) {
 							$recalchotness = true;
+
+							$pendingRecalcs[] = 'recount_posts';
+							qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
+						}
 						break;
 
 					case 'block_ips_write':
@@ -866,6 +871,14 @@ $qa_content = qa_content_prepare();
 $qa_content['title'] = qa_lang_html('admin/admin_title') . ' - ' . qa_lang_html($subtitle);
 $qa_content['error'] = $securityexpired ? qa_lang_html('admin/form_security_expired') : qa_admin_page_error();
 
+if (empty($qa_content['error']) && $recalchotness && $adminsection === 'lists') {
+	$qa_content['error'] = strtr(qa_lang_html('admin/recalc_needed'), [
+		'^1' => sprintf('<a href="%s">', qa_path_html('admin/stats', null, null, null, 'form_recount_posts')),
+		'^2' => qa_lang_html('admin/recalc_recount_posts_title'),
+		'^3' => '</a>',
+	]);
+}
+
 $qa_content['script_rel'][] = 'qa-content/qa-admin.js?' . QA_VERSION;
 
 $qa_content['form'] = array(
@@ -896,17 +909,7 @@ $qa_content['form'] = array(
 	),
 );
 
-if ($recalchotness) {
-	$qa_content['form']['ok'] = '<span id="recalc_ok"></span>';
-	$qa_content['form']['hidden']['code_recalc'] = qa_get_form_security_code('admin/recalc');
-
-	$qa_content['script_var']['qa_warning_recalc'] = qa_lang('admin/stop_recalc_warning');
-
-	$qa_content['script_onloads'][] = array(
-		"qa_recalc_click('dorecountposts', document.getElementById('dosaveoptions'), null, 'recalc_ok');"
-	);
-
-} elseif ($startmailing) {
+if ($startmailing) {
 	if (qa_post_text('has_js')) {
 		$qa_content['form']['ok'] = '<span id="mailing_ok">' . qa_html($mailingprogress) . '</span>';
 
@@ -1815,43 +1818,77 @@ switch ($adminsection) {
 		$qa_content['error'] = $cacheDriver->getError();
 		$cacheStats = $cacheDriver->getStats();
 
-		$qa_content['form_2'] = array(
-			'tags' => 'method="post" action="' . qa_path_html('admin/recalc') . '"',
+		$qa_lang_keys = ['please_wait', 'process_start', 'process_stop'];
+
+		$qa_langs = [];
+		foreach ($qa_lang_keys as $key) {
+			$qa_langs[$key] = qa_lang('admin/' . $key);
+		}
+
+		$qa_content['script_lines'][] = [
+			sprintf('const qa_langs = %s;', json_encode($qa_langs)),
+			'const cachingProcessOptions = {',
+			'    forceRestart: true,',
+			'    requiresServerTracking: false,',
+			'    callbackStart: process => document.getElementById(\'process_type_select\').disabled = true,',
+			'    callbackStop: hasFinished => document.getElementById(\'process_type_select\').disabled = false',
+			'};',
+		];
+
+		$qa_content['script_onloads'][] = [
+			'const processTypeSelect = document.getElementById(\'process_type_select\');',
+			'processTypeSelect.addEventListener(\'change\', event => {',
+			'    document.querySelector(\'[data-caching_button_id="caching_button"]\').id = event.target.value;' .
+			'    document.querySelector(\'[data-caching_status_id="caching_status"]\').id = event.target.value + \'_status\';' .
+			'});',
+		];
+
+		$qa_content['form_2'] = [
+			'tags' => sprintf('method="post" action="%s"', qa_path_html('admin/recalc')),
 
 			'title' => qa_lang_html('admin/caching_cleanup'),
 
 			'style' => 'wide',
 
-			'fields' => array(
-				'cache_files' => array(
+			'fields' => [
+				'cache_files' => [
 					'type' => 'static',
 					'label' => qa_lang_html('admin/caching_num_items'),
 					'value' => qa_html(qa_format_number($cacheStats['files'])),
-				),
-				'cache_size' => array(
+				],
+				'cache_size' => [
 					'type' => 'static',
 					'label' => qa_lang_html('admin/caching_space_used'),
 					'value' => qa_html(qa_format_number($cacheStats['size'] / 1048576, 1) . ' MB'),
-				),
-			),
+				],
+				'process_type' => [
+					'type' => 'select',
+					'style' => 'tall',
+					'tags' => 'id="process_type_select"',
+					'options' => [
+						'cache_trim' => qa_lang_html('admin/caching_delete_expired'),
+						'cache_clear' => qa_lang_html('admin/caching_delete_all'),
+					],
+				],
+				'status' => [
+					'type' => 'custom',
+					'style' => 'tall',
+					'html' => '<span id="cache_trim_status" data-caching_status_id="caching_status"></span>',
+				],
+			],
 
-			'buttons' => array(
-				'delete_expired' => array(
-					'label' => qa_lang_html('admin/caching_delete_expired'),
-					'tags' => 'name="docachetrim" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/delete_stop')) . ', \'cachetrim_note\');"',
-					'note' => '<span id="cachetrim_note"></span>',
-				),
-				'delete_all' => array(
-					'label' => qa_lang_html('admin/caching_delete_all'),
-					'tags' => 'name="docacheclear" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/delete_stop')) . ', \'cacheclear_note\');"',
-					'note' => '<span id="cacheclear_note"></span>',
-				),
-			),
+			'buttons' => [
+				'caching_process' => [
+					'label' => qa_lang_html('admin/process_start'),
+					'tags' => 'id="cache_trim" data-caching_button_id="caching_button" onclick="return qa_recalc_click(this.id, cachingProcessOptions);"',
+				],
+			],
 
-			'hidden' => array(
+			'hidden' => [
 				'code' => qa_get_form_security_code('admin/recalc'),
-			),
-		);
+			],
+		];
+
 		break;
 }
 
