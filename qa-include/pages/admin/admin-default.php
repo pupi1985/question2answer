@@ -716,7 +716,7 @@ else {
 				$optionvalue = qa_post_text('option_' . $optionname);
 
 				if (@$optiontype[$optionname] == 'number' || @$optiontype[$optionname] == 'checkbox' ||
-					(@$optiontype[$optionname] == 'number-blank' && strlen($optionvalue))
+					(@$optiontype[$optionname] == 'number-blank' && strlen((string)$optionvalue))
 				)
 					$optionvalue = (int)$optionvalue;
 
@@ -1046,12 +1046,12 @@ foreach ($showoptions as $optionname) {
 					$metadata = qa_addon_metadata($contents, 'Theme');
 				}
 
-				if (strlen(@$metadata['version']))
+				if (strlen($metadata['version'] ?? ''))
 					$namehtml = 'v' . qa_html($metadata['version']);
 				else
 					$namehtml = '';
 
-				if (strlen(@$metadata['uri'])) {
+				if (strlen($metadata['uri'] ?? '')) {
 					if (!strlen($namehtml))
 						$namehtml = qa_html($value);
 
@@ -1059,10 +1059,10 @@ foreach ($showoptions as $optionname) {
 				}
 
 				$authorhtml = '';
-				if (strlen(@$metadata['author'])) {
+				if (strlen($metadata['author'] ?? '')) {
 					$authorhtml = qa_html($metadata['author']);
 
-					if (strlen(@$metadata['author_uri']))
+					if (strlen($metadata['author_uri'] ?? ''))
 						$authorhtml = '<a href="' . qa_html($metadata['author_uri']) . '">' . $authorhtml . '</a>';
 
 					$authorhtml = qa_lang_html_sub('main/by_x', $authorhtml);
@@ -1070,7 +1070,7 @@ foreach ($showoptions as $optionname) {
 				}
 
 				$updatehtml = '';
-				if (strlen(@$metadata['version']) && strlen(@$metadata['update_uri'])) {
+				if (strlen($metadata['version'] ?? '') && strlen($metadata['update_uri'] ?? '')) {
 					$elementid = 'version_check_' . $optionname;
 
 					$updatehtml = '(<span id="' . $elementid . '">...</span>)';

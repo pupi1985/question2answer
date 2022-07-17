@@ -156,7 +156,7 @@ elseif (qa_clicked('dosaveoptions') || qa_clicked('doaddpage') || qa_clicked('do
 			} else {
 				// Verify the heading is legitimate
 
-				if (qa_strlen($inheading) > QA_DB_MAX_TITLE_LENGTH)
+				if (qa_strlen((string)$inheading) > QA_DB_MAX_TITLE_LENGTH)
 					$errors['heading'] = qa_lang_sub('main/max_length_x', QA_DB_MAX_TITLE_LENGTH);
 
 				// Verify the slug is legitimate (and try some defaults if we're creating a new page, and it's not)
