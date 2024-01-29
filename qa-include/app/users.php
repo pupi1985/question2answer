@@ -415,7 +415,7 @@ if (QA_FINAL_EXTERNAL_USERS) {
 
 					$userinfo = qa_db_single_select(qa_db_user_account_selectspec($handle, false)); // don't get any pending
 
-					if (!empty($userinfo) && strtolower(trim($userinfo['sessioncode'] ?? '')) == strtolower($sessioncode))
+					if (strtolower(trim($userinfo['sessioncode'] ?? '')) == strtolower($sessioncode))
 						qa_set_session_user($userinfo['userid'], $userinfo['sessionsource']);
 					else
 						qa_clear_session_cookie(); // if cookie not valid, remove it to save future checks

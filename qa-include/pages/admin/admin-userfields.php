@@ -80,7 +80,7 @@ elseif (qa_clicked('dosavefield')) {
 
 			// Verify the name is legitimate
 
-			if (qa_strlen($inname) > QA_DB_MAX_PROFILE_TITLE_LENGTH)
+			if (qa_strlen((string)$inname) > QA_DB_MAX_PROFILE_TITLE_LENGTH)
 				$errors['name'] = qa_lang_sub('main/max_length_x', QA_DB_MAX_PROFILE_TITLE_LENGTH);
 
 			// Perform appropriate database action
