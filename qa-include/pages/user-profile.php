@@ -55,8 +55,7 @@ if (!QA_FINAL_EXTERNAL_USERS) {
 
 list($userprofile, $userfields, $usermessages, $userpoints, $userlevels, $navcategories, $userrank) =
 	qa_db_select_with_pending(
-		QA_FINAL_EXTERNAL_USERS ? null : qa_db_user_account_selectspec($handle, false),
-		QA_FINAL_EXTERNAL_USERS ? null : qa_db_user_profile_selectspec($handle, false),
+		QA_FINAL_EXTERNAL_USERS ? null : qa_db_user_profile_selectspec($userid, true),
 		QA_FINAL_EXTERNAL_USERS ? null : qa_db_userfields_selectspec(),
 		QA_FINAL_EXTERNAL_USERS ? null : qa_db_recent_messages_selectspec(null, null, $userid, true, qa_opt_if_loaded('page_size_wall')),
 		qa_db_user_points_selectspec($userid, true),
