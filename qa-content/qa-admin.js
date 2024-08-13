@@ -19,76 +19,124 @@
 	More about this license: http://www.question2answer.org/license.php
 */
 
-var qa_recalc_running = 0;
+const qa_recalcProcesses = new Map();
 
-window.onbeforeunload = function(event)
-{
-	if (qa_recalc_running > 0) {
-		event = event || window.event;
-		var message = qa_warning_recalc;
-		event.returnValue = message;
-		return message;
+window.onbeforeunload = event => {
+	for (let [processKey, process] of qa_recalcProcesses.entries()) {
+		if (process.clientRunning) {
+			event.preventDefault();
+			event.returnValue = true;
+		}
 	}
 };
 
-function qa_recalc_click(state, elem, value, noteid)
+/**
+ * @param {String} processKey
+ * @param {object} options - See keys and default values below
+ * @returns {boolean}
+ */
+function qa_recalc_click(processKey, options = {})
 {
-	if (elem.qa_recalc_running) {
-		elem.qa_recalc_stopped = true;
+	options = {
+		forceRestart: false,
+		requiresServerTracking: true,
+		callbackStart: process => {},
+		callbackStop: hasFinished => {},
+		...options,
+	};
 
+	let process = qa_recalcProcesses.get(processKey) ?? {processKey: processKey};
+
+	const startButton = document.getElementById(processKey);
+	const continueButton = document.getElementById(processKey + '_continue');
+	const statusLabel = document.getElementById(processKey + '_status');
+
+	if (process.clientRunning) {
+		process.stopRequest = true;
 	} else {
-		elem.qa_recalc_running = true;
-		elem.qa_recalc_stopped = false;
-		qa_recalc_running++;
+		process = {
+			...process,
+			"startButton": startButton,
+			"continueButton": continueButton,
+			"statusLabel": statusLabel,
+			"clientRunning": true,
+			"stopRequest": false,
+			"options": options
+		};
 
-		document.getElementById(noteid).innerHTML = '';
-		elem.qa_original_value = elem.value;
-		if (value)
-			elem.value = value;
+		qa_recalcProcesses.set(processKey, process);
 
-		qa_recalc_update(elem, state, noteid);
+		qa_conceal(process.continueButton);
+
+		statusLabel.innerHTML = qa_langs.please_wait;
+		startButton.value = qa_langs.process_stop;
+
+		process.options.callbackStart(process);
+
+		qa_recalc_update(process);
 	}
 
 	return false;
 }
 
-function qa_recalc_update(elem, state, noteid)
+function qa_recalc_update(process)
 {
-	if (state) {
-		var recalcCode = elem.form.elements.code_recalc ? elem.form.elements.code_recalc.value : elem.form.elements.code.value;
-		qa_ajax_post(
-			'recalc',
-			{state: state, code: recalcCode},
-			function(lines) {
-				if (lines[0] == '1') {
-					if (lines[2])
-						document.getElementById(noteid).innerHTML = lines[2];
+	const recalcCode = process.startButton.form.elements.code.value;
 
-					if (elem.qa_recalc_stopped)
-						qa_recalc_cleanup(elem);
-					else
-						qa_recalc_update(elem, lines[1], noteid);
+	qa_ajax_post(
+		'recalc',
+		{
+			process: process.processKey,
+			forceRestart: process.options.forceRestart,
+			code: recalcCode
+		},
+		function (lines) {
+			const result = lines[0] ?? '0';
+			const message = lines[1] ?? null;
+			const nextProcessKey = lines[2] ?? null;
+			const hasFinished = (lines[3] ?? '0') === '1';
 
-				} else if (lines[0] == '0') {
-					document.getElementById(noteid).innerHTML = lines[1];
-					qa_recalc_cleanup(elem);
+			switch (result) {
+				case '1':
+					if (message !== null) {
+						process.statusLabel.innerHTML = message;
+					}
 
-				} else {
+					process.serverProcessPending = process.options.requiresServerTracking ? !hasFinished : false;
+					if (hasFinished || process.stopRequest) {
+						process.clientRunning = false;
+						qa_recalc_cleanup(process, hasFinished);
+					} else {
+						process.options.forceRestart = false;
+						qa_recalc_update(process);
+					}
+					break;
+				case '0':
+					process.statusLabel.innerHTML = message;
+					process.clientRunning = false;
+					qa_recalc_cleanup(process);
+					break;
+				default:
 					qa_ajax_error();
-					qa_recalc_cleanup(elem);
-				}
+					process.clientRunning = false;
+					qa_recalc_cleanup(process);
 			}
-		);
-	} else {
-		qa_recalc_cleanup(elem);
-	}
+		}
+	);
 }
 
-function qa_recalc_cleanup(elem)
+function qa_recalc_cleanup(process, hasFinished = false)
 {
-	elem.value = elem.qa_original_value;
-	elem.qa_recalc_running = null;
-	qa_recalc_running--;
+	process.options.callbackStop(hasFinished);
+
+	if (process.options.requiresServerTracking && process.serverProcessPending) {
+		process.startButton.value = qa_langs.process_restart;
+		process.statusLabel.innerHTML = qa_langs.process_unfinished;
+		qa_reveal(process.continueButton);
+	} else {
+		process.startButton.value = qa_langs.process_start;
+		qa_conceal(process.continueButton);
+	}
 }
 
 function qa_mailing_start(noteid, pauseid)

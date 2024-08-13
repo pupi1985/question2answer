@@ -22,27 +22,39 @@
 require_once QA_INCLUDE_DIR . 'app/users.php';
 require_once QA_INCLUDE_DIR . 'app/recalc.php';
 
+$response = "QA_AJAX_RESPONSE\n1\n";
 
 if (qa_get_logged_in_level() >= QA_USER_LEVEL_ADMIN) {
 	if (!qa_check_form_security_code('admin/recalc', qa_post_text('code'))) {
-		$state = '';
-		$message = qa_lang('misc/form_security_reload');
-
+		$response .= qa_lang('misc/form_security_reload');
 	} else {
-		$state = qa_post_text('state');
+		$process = qa_post_text('process');
+		$forceRestart = qa_post_text('forceRestart') === 'true';
 		$stoptime = time() + 3;
 
-		while (qa_recalc_perform_step($state) && time() < $stoptime) {
-			// wait
+		do {
+			$result = qa_recalc_get_process_manager($process)->execute($forceRestart);
+			$stepFinished = $result['step_state']['is_finished'] ?? false;
+			$processedItems = $result['step_state']['processed_items'] ?? 0;
+			$shouldShowProgress = $result['process_finished'] || $stepFinished || $processedItems === 0;
+		} while (!$shouldShowProgress && time() < $stoptime);
+
+		// Remove reminder to run pending processes
+		if ($result['process_finished']) {
+			$pendingRecalcs = json_decode(qa_opt('recalc_pending_processes'), true) ?? [];
+			$processKey = array_search($process, $pendingRecalcs);
+			if ($processKey !== false) {
+				unset($pendingRecalcs[$processKey]);
+				qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
+			}
 		}
 
-		$message = qa_recalc_get_message($state);
+		$response .= $result['message'] . "\n";
+		$response .= $process . "\n";
+		$response .= (int)$result['process_finished'];
 	}
-
 } else {
-	$state = '';
-	$message = qa_lang('admin/no_privileges');
+	$response .= qa_lang('admin/no_privileges');
 }
 
-
-echo "QA_AJAX_RESPONSE\n1\n" . $state . "\n" . qa_html($message);
+echo $response;

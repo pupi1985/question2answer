@@ -93,6 +93,8 @@ if (qa_clicked('dosaveoptions')) {
 	}
 }
 
+$pendingRecalcs = json_decode(qa_opt('recalc_pending_processes'), true) ?? [];
+
 $errors = array();
 
 // Process saving an old or new category
@@ -112,7 +114,11 @@ if (qa_clicked('docancel')) {
 	else {
 		$inreassign = qa_get_category_field_value('reassign');
 		qa_db_category_reassign($editcategory['categoryid'], $inreassign);
-		qa_redirect(qa_request(), array('recalc' => 1, 'edit' => $editcategory['categoryid']));
+
+		$pendingRecalcs[] = 'recalc_categories';
+		qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
+
+		qa_redirect(qa_request(), array('edit' => $editcategory['categoryid']));
 	}
 
 } elseif (qa_clicked('dosavecategory')) {
@@ -124,7 +130,11 @@ if (qa_clicked('docancel')) {
 			$inreassign = qa_get_category_field_value('reassign');
 			qa_db_category_reassign($editcategory['categoryid'], $inreassign);
 			qa_db_category_delete($editcategory['categoryid']);
-			qa_redirect(qa_request(), array('recalc' => 1, 'edit' => $editcategory['parentid']));
+
+			$pendingRecalcs[] = 'recalc_categories';
+			qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
+
+			qa_redirect(qa_request(), array('edit' => $editcategory['parentid']));
 		}
 
 	} else {
@@ -207,8 +217,6 @@ if (qa_clicked('docancel')) {
 			if (isset($editcategory['categoryid'])) { // changing existing category
 				qa_db_category_rename($editcategory['categoryid'], $inname, $inslug);
 
-				$recalc = false;
-
 				if ($setparent) {
 					qa_db_category_set_parent($editcategory['categoryid'], $inparentid);
 					$recalc = true;
@@ -218,7 +226,12 @@ if (qa_clicked('docancel')) {
 					$recalc = $hassubcategory && $inslug !== $editcategory['tags'];
 				}
 
-				qa_redirect(qa_request(), array('edit' => $editcategory['categoryid'], 'saved' => true, 'recalc' => (int)$recalc));
+				if ($recalc) {
+					$pendingRecalcs[] = 'recalc_categories';
+					qa_opt('recalc_pending_processes', json_encode($pendingRecalcs));
+				}
+
+				qa_redirect(qa_request(), array('edit' => $editcategory['categoryid'], 'saved' => true));
 
 			} else { // creating a new one
 				$categoryid = qa_db_category_create($inparentid, $inname, $inslug);
@@ -259,7 +272,6 @@ if ($setmissing) {
 
 		'buttons' => array(
 			'save' => array(
-				'tags' => 'id="dosaveoptions"', // just used for qa_recalc_click()
 				'label' => qa_lang_html('main/save_button'),
 			),
 
@@ -324,7 +336,6 @@ if ($setmissing) {
 
 		'buttons' => array(
 			'save' => array(
-				'tags' => 'id="dosaveoptions"', // just used for qa_recalc_click
 				'label' => qa_lang_html(isset($editcategory['categoryid']) ? 'main/save_button' : 'admin/add_category_button'),
 			),
 
@@ -543,7 +554,7 @@ if ($setmissing) {
 
 		'buttons' => array(
 			'save' => array(
-				'tags' => 'name="dosaveoptions" id="dosaveoptions"',
+				'tags' => 'name="dosaveoptions"',
 				'label' => qa_lang_html('main/save_button'),
 			),
 
@@ -613,16 +624,13 @@ if ($setmissing) {
 		unset($qa_content['form']['buttons']['save']);
 }
 
-if (qa_get('recalc')) {
-	$qa_content['form']['ok'] = '<span id="recalc_ok">' . qa_lang_html('admin/recalc_categories') . '</span>';
-	$qa_content['form']['hidden']['code_recalc'] = qa_get_form_security_code('admin/recalc');
 
-	$qa_content['script_rel'][] = 'qa-content/qa-admin.js?' . QA_VERSION;
-	$qa_content['script_var']['qa_warning_recalc'] = qa_lang('admin/stop_recalc_warning');
-
-	$qa_content['script_onloads'][] = array(
-		"qa_recalc_click('dorecalccategories', document.getElementById('dosaveoptions'), null, 'recalc_ok');"
-	);
+if (in_array('recalc_categories', $pendingRecalcs)) {
+	$qa_content['error'] = strtr(qa_lang_html('admin/recalc_needed'), [
+		'^1' => sprintf('<a href="%s">', qa_path_html('admin/stats', null, null, null, 'form_recalc_categories')),
+		'^2' => qa_lang_html('admin/recalc_recalc_categories_title'),
+		'^3' => '</a>',
+	]);
 }
 
 $qa_content['navigation']['sub'] = qa_admin_sub_navigation();

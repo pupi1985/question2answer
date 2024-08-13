@@ -400,6 +400,8 @@ function qa_db_users_get_mailing_next($lastuserid, $count)
  */
 function qa_db_uapprovecount_update($increment = null)
 {
+	require_once QA_INCLUDE_DIR . 'app/users.php';
+
 	if (QA_FINAL_EXTERNAL_USERS) {
 		return;
 	}

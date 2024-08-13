@@ -29,12 +29,11 @@ require_once QA_INCLUDE_DIR . 'app/admin.php';
 require_once QA_INCLUDE_DIR . 'db/admin.php';
 require_once QA_INCLUDE_DIR . 'app/format.php';
 
-
 // Check admin privileges (do late to allow one DB query)
 
-if (!qa_admin_check_privileges($qa_content))
+if (!qa_admin_check_privileges($qa_content)) {
 	return $qa_content;
-
+}
 
 // Get the information to display
 
@@ -47,7 +46,6 @@ $acount_anon = qa_db_count_posts('A', false);
 
 $ccount = (int)qa_opt('cache_ccount');
 $ccount_anon = qa_db_count_posts('C', false);
-
 
 // Prepare content for theme
 
@@ -193,96 +191,133 @@ $qa_content['form'] = array(
 	),
 );
 
-if (QA_FINAL_EXTERNAL_USERS)
+if (QA_FINAL_EXTERNAL_USERS) {
 	unset($qa_content['form']['fields']['users']);
-else
+} else {
 	unset($qa_content['form']['fields']['users_active']);
-
-foreach ($qa_content['form']['fields'] as $index => $field) {
-	if (empty($field['type']))
-		$qa_content['form']['fields'][$index]['type'] = 'static';
 }
 
-$qa_content['form_2'] = array(
-	'tags' => 'method="post" action="' . qa_path_html('admin/recalc') . '"',
+foreach ($qa_content['form']['fields'] as $index => $field) {
+	if (empty($field['type'])) {
+		$qa_content['form']['fields'][$index]['type'] = 'static';
+	}
+}
 
-	'title' => qa_lang_html('admin/database_cleanup'),
+$qa_lang_keys = ['please_wait', 'process_start', 'process_stop', 'process_restart', 'process_unfinished'];
 
-	'style' => 'basic',
+$qa_langs = [];
+foreach ($qa_lang_keys as $key) {
+	$qa_langs[$key] = qa_lang('admin/' . $key);
+}
 
-	'buttons' => array(
-		'recount_posts' => array(
-			'label' => qa_lang_html('admin/recount_posts'),
-			'tags' => 'name="dorecountposts" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/recount_posts_stop')) . ', \'recount_posts_note\');"',
-			'note' => '<span id="recount_posts_note">' . qa_lang_html('admin/recount_posts_note') . '</span>',
-		),
+$allProcessesKeys = [
+	'recount_posts',
+	'reindex_content',
+	'users_points',
+	'refill_events',
+	'delete_hidden_posts',
+	'recalc_categories',
+];
 
-		'reindex_content' => array(
-			'label' => qa_lang_html('admin/reindex_content'),
-			'tags' => 'name="doreindexcontent" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/reindex_content_stop')) . ', \'reindex_content_note\');"',
-			'note' => '<span id="reindex_content_note">' . qa_lang_html('admin/reindex_content_note') . '</span>',
-		),
-
-		'recalc_points' => array(
-			'label' => qa_lang_html('admin/recalc_points'),
-			'tags' => 'name="dorecalcpoints" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/recalc_stop')) . ', \'recalc_points_note\');"',
-			'note' => '<span id="recalc_points_note">' . qa_lang_html('admin/recalc_points_note') . '</span>',
-		),
-
-		'refill_events' => array(
-			'label' => qa_lang_html('admin/refill_events'),
-			'tags' => 'name="dorefillevents" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/recalc_stop')) . ', \'refill_events_note\');"',
-			'note' => '<span id="refill_events_note">' . qa_lang_html('admin/refill_events_note') . '</span>',
-		),
-
-		'recalc_categories' => array(
-			'label' => qa_lang_html('admin/recalc_categories'),
-			'tags' => 'name="dorecalccategories" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/recalc_stop')) . ', \'recalc_categories_note\');"',
-			'note' => '<span id="recalc_categories_note">' . qa_lang_html('admin/recalc_categories_note') . '</span>',
-		),
-
-		'delete_hidden' => array(
-			'label' => qa_lang_html('admin/delete_hidden'),
-			'tags' => 'name="dodeletehidden" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/delete_stop')) . ', \'delete_hidden_note\');"',
-			'note' => '<span id="delete_hidden_note">' . qa_lang_html('admin/delete_hidden_note') . '</span>',
-		),
-	),
-
-	'hidden' => array(
-		'code' => qa_get_form_security_code('admin/recalc'),
-	),
-);
-
-if (!qa_using_categories())
-	unset($qa_content['form_2']['buttons']['recalc_categories']);
+if (qa_using_categories()) {
+	$allProcessesKeys[] = 'recalc_categories';
+}
 
 if (defined('QA_BLOBS_DIRECTORY')) {
 	if (qa_db_has_blobs_in_db()) {
-		$qa_content['form_2']['buttons']['blobs_to_disk'] = array(
-			'label' => qa_lang_html('admin/blobs_to_disk'),
-			'tags' => 'name="doblobstodisk" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/blobs_stop')) . ', \'blobs_to_disk_note\');"',
-			'note' => '<span id="blobs_to_disk_note">' . qa_lang_html('admin/blobs_to_disk_note') . '</span>',
-		);
+		$allProcessesKeys[] = 'blobs_to_disk';
 	}
 
 	if (qa_db_has_blobs_on_disk()) {
-		$qa_content['form_2']['buttons']['blobs_to_db'] = array(
-			'label' => qa_lang_html('admin/blobs_to_db'),
-			'tags' => 'name="doblobstodb" onclick="return qa_recalc_click(this.name, this, ' . qa_js(qa_lang_html('admin/blobs_stop')) . ', \'blobs_to_db_note\');"',
-			'note' => '<span id="blobs_to_db_note">' . qa_lang_html('admin/blobs_to_db_note') . '</span>',
-		);
+		$allProcessesKeys[] = 'blobs_to_db';
 	}
 }
 
+$allProcesses = [];
+foreach ($allProcessesKeys as $processKey) {
+	// One of: qa_recalc_recount_posts_state, qa_recalc_reindex_content_state, qa_recalc_users_points_state,
+	// qa_recalc_refill_events_state, qa_recalc_recalc_categories_state, qa_recalc_delete_hidden_posts_state
+	$stateOption = 'qa_recalc_' . $processKey . '_state';
+	$allProcesses[$processKey] = [
+		'serverProcessPending' => !empty(qa_opt($stateOption)),
+	];
+
+	$qa_content['form_' . $processKey] = [
+		'tags' => sprintf('method="post" action="%s", id="form_%s"', qa_path_html("admin/recalc"), $processKey),
+
+		'style' => 'tall',
+
+		'fields' => [
+			'process_title' => [
+				'type' => 'static',
+				// One of: recalc_recount_posts_title, recalc_reindex_content_title, recalc_users_points_title,
+				// recalc_refill_events_title, recalc_recalc_categories_title, recalc_delete_hidden_posts_title
+				'value' => qa_lang_html(sprintf('admin/recalc_%s_title', $processKey)),
+				// One of: recalc_recount_posts_note, recalc_reindex_content_note, recalc_users_points_note,
+				// recalc_refill_events_note, recalc_recalc_categories_note, recalc_delete_hidden_posts_note
+				'note' => qa_lang_html(sprintf('admin/recalc_%s_note', $processKey)),
+			],
+			'status' => [
+				'type' => 'custom',
+				'html' => sprintf(
+					'<span id="%s_status">%s</span>',
+					$processKey,
+					$allProcesses[$processKey]['serverProcessPending'] ? qa_html($qa_langs['process_unfinished']) : '',
+				),
+			],
+		],
+
+		'buttons' => [
+			$processKey . '_restart' => [
+				'label' => $allProcesses[$processKey]['serverProcessPending'] ? qa_html($qa_langs['process_restart']) : qa_html($qa_langs['process_start']),
+				'tags' => sprintf('id="%s" name="%s" onclick="return qa_recalc_click(this.name, {forceRestart: true})"', $processKey, $processKey),
+			],
+			$processKey . '_continue' => [
+				'label' => qa_lang_html('admin/process_continue'),
+				'tags' => sprintf(
+					'id="%s_continue" name="%s_continue" data-process="%s" onclick="return qa_recalc_click(this.dataset.process)"%s',
+					$processKey,
+					$processKey,
+					$processKey,
+					empty(qa_opt($stateOption)) ? ' style="display: none"' : ''
+				),
+			],
+		],
+
+		'hidden' => [
+			'code' => qa_get_form_security_code('admin/recalc'),
+		],
+	];
+}
+
+$qa_content['script_lines'][] = [
+	sprintf('const qa_langs = %s;', json_encode($qa_langs)),
+	sprintf('const qa_serverProcessesInfo = %s;', json_encode($allProcesses)),
+	'window.onbeforeunload = event => {',
+	'    for (let [processKey, process] of qa_recalcProcesses.entries()) {',
+	'        if (process.clientRunning) {',
+	'            event.preventDefault();',
+	'            event.returnValue = true;',
+	'        }',
+	'    }',
+	'};',
+];
+
+$qa_content['script_onloads'][] = [
+	'for (const processKey in qa_serverProcessesInfo) {',
+	'    qa_recalcProcesses.set(processKey, {',
+	'        "processKey": processKey,',
+	'        "serverProcessPending": qa_serverProcessesInfo[processKey]["serverProcessPending"]',
+	'    });',
+	'}',
+];
 
 $qa_content['script_rel'][] = 'qa-content/qa-admin.js?' . QA_VERSION;
-$qa_content['script_var']['qa_warning_recalc'] = qa_lang('admin/stop_recalc_warning');
 
 $qa_content['script_onloads'][] = array(
 	"qa_version_check('https://raw.githubusercontent.com/q2a/question2answer/master/VERSION.txt', " . qa_js(qa_html(QA_VERSION), true) . ", 'q2a-version', true);"
 );
 
 $qa_content['navigation']['sub'] = qa_admin_sub_navigation();
-
 
 return $qa_content;
